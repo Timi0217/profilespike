@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User } from '@/api/entities';
 import { UserProfile } from '@/api/entities';
+import { logger } from '@/utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -14,9 +15,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuthStatus = async () => {
         try {
-            console.log("Checking auth status...");
             const currentUser = await User.me();
-            console.log("Session initialized:", currentUser?.id);
             setUser(currentUser);
             if (currentUser) {
                 const profiles = await UserProfile.filter({ created_by: currentUser.email });
@@ -31,15 +30,13 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             // Handle 401 (Unauthorized) as normal behavior - user is not logged in
             if (error.response && error.response.status === 401) {
-                console.log("User not authenticated (expected for logged out users)");
             } else {
                 // Log other errors as they might indicate actual problems
-                console.error("Auth check failed:", error.message);
+                logger.error("Auth check failed:", error.message);
             }
             setUser(null);
             setUserProfile(null);
         } finally {
-            console.log("Auth check finished.");
             setIsLoading(false);
             initialFetchCompleted = true;
         }
