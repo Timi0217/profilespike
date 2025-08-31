@@ -208,7 +208,7 @@ export default function SavedInsights({ user }) {
                         <CardHeader>
                         <div className="flex justify-between items-start">
                             <InsightIcon type={insight.insight_type} status={insight.status} />
-                            {insight.score && <Badge variant={insight.score > 80 ? 'default' : 'secondary'}>{insight.score}/100}</Badge>}
+                            {insight.score && <Badge variant={insight.score > 80 ? 'default' : 'secondary'}>{insight.score}/100</Badge>}
                         </div>
                         <CardTitle className="text-lg mt-4">{insight.title}</CardTitle>
                         </CardHeader>

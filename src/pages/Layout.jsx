@@ -4,10 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { User as UserIcon, BarChart3, FileText, Linkedin, Briefcase, MessageSquare, LayoutDashboard, CreditCard, Info, Award, Bookmark, ShieldCheck, DollarSign, ChevronRight, ChevronsUpDown, LogIn, TrendingUp, LogOut, ShieldAlert } from "lucide-react";
-import ErrorBoundary from "./components/ErrorBoundary";
-import LoadingSpinner from "./components/LoadingSpinner";
-import { AuthProvider, useAuth } from "./components/AuthContext";
-import SessionGuard from "./components/SessionGuard"; // New import for the external SessionGuard component
+import ErrorBoundary from "../components/ErrorBoundary";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { AuthProvider, useAuth } from "../components/AuthContext";
+import SessionGuard from "../components/SessionGuard";
 import {
   Sidebar,
   SidebarContent,
