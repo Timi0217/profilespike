@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { User } from "@/api/entities";
 import { UserProfile } from "@/api/entities";
+import { userProfileSchema } from "@/schemas/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -205,6 +206,14 @@ export default function Onboarding() {
     setIsSubmitting(true);
     setError(null);
     try {
+      // Validate form data
+      const validation = userProfileSchema.safeParse(formData);
+      if (!validation.success) {
+        setError(validation.error.errors[0].message);
+        setIsSubmitting(false);
+        return;
+      }
+
       let profileData = {
         user_type: formData.user_type,
         first_name: formData.first_name,
