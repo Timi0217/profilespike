@@ -1,23 +1,15 @@
-import { base44 } from './base44Client';
+import { createEntity, STORAGE_KEYS } from './localStorage';
+import { User } from './mockAuth';
 
+// Create local storage entities
+export const UserProfile = createEntity(STORAGE_KEYS.USER_PROFILE);
+export const Analysis = createEntity(STORAGE_KEYS.ANALYSES);
+export const SavedInsight = createEntity(STORAGE_KEYS.SAVED_INSIGHTS);
+export const LearningPlan = createEntity(STORAGE_KEYS.LEARNING_PLANS);
+export const Article = createEntity(STORAGE_KEYS.ARTICLES);
+export const EmailTemplate = createEntity(STORAGE_KEYS.EMAIL_TEMPLATES);
+export const CompensationAnalysis = createEntity(STORAGE_KEYS.COMPENSATION_ANALYSES);
+export const CareerPath = createEntity(STORAGE_KEYS.CAREER_PATHS);
 
-export const UserProfile = base44.entities.UserProfile;
-
-export const Analysis = base44.entities.Analysis;
-
-export const SavedInsight = base44.entities.SavedInsight;
-
-export const LearningPlan = base44.entities.LearningPlan;
-
-export const Article = base44.entities.Article;
-
-export const EmailTemplate = base44.entities.EmailTemplate;
-
-export const CompensationAnalysis = base44.entities.CompensationAnalysis;
-
-export const CareerPath = base44.entities.CareerPath;
-
-
-
-// auth sdk:
-export const User = base44.auth;
+// Export mock auth
+export { User };
