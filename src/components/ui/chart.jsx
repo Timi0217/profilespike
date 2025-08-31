@@ -56,25 +56,30 @@ const ChartStyle = ({
     return null
   }
 
-  return (
-    (<style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-.map(([key, itemConfig]) => {
-const color =
-  itemConfig.theme?.[theme] ||
-  itemConfig.color
-return color ? `  --color-${key}: ${color};` : null
-})
-.join("\n")}
-}
-`)
-          .join("\n"),
-      }} />)
-  );
+  // Sanitize chart ID to prevent XSS
+  const sanitizedId = id.replace(/[^a-zA-Z0-9-_]/g, '')
+  
+  // Generate CSS custom properties safely
+  const cssText = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const cssProperties = colorConfig
+        .map(([key, itemConfig]) => {
+          const color = itemConfig.theme?.[theme] || itemConfig.color
+          // Sanitize key and validate color format
+          const sanitizedKey = key.replace(/[^a-zA-Z0-9-_]/g, '')
+          if (!color || !/^(#[0-9a-fA-F]{3,8}|rgb|hsl|var\(|[a-zA-Z]+)/.test(color)) {
+            return null
+          }
+          return `  --color-${sanitizedKey}: ${color};`
+        })
+        .filter(Boolean)
+        .join('\n')
+      
+      return `${prefix} [data-chart="${sanitizedId}"] {\n${cssProperties}\n}`
+    })
+    .join('\n')
+
+  return React.createElement('style', { key: sanitizedId }, cssText)
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip
