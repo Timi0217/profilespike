@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { User } from "@/api/entities";
+import { authService } from "@/api/auth";
 import { UserProfile } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -298,7 +298,7 @@ export default function Profile() {
               </CardContent>
             </Card>
 
-            <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => User.logout()}>
+            <Button variant="ghost" className="w-full text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => authService.signOut()}>
               <LogOut className="w-4 h-4 mr-2"/>
               Log Out
             </Button>

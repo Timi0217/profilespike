@@ -1,5 +1,5 @@
 // Mock authentication system to replace Base44 auth
-import { storage, STORAGE_KEYS } from './localStorage';
+import { storage } from './localStorage';
 
 const AUTH_STORAGE_KEY = 'profilespike_auth_session';
 
@@ -19,19 +19,23 @@ class MockAuth {
       return this.currentUser;
     }
     
-    // Session expired or doesn't exist
+    // No session - user needs to sign in
     this.logout();
-    throw new Error('User not authenticated', { response: { status: 401 } });
+    return null;
   }
 
   // Mock login - in real app this would redirect to OAuth provider
   async loginWithRedirect(redirectUrl = window.location.href) {
     // For demo purposes, create a mock user
+    const adminEmails = ['admin@profilespike.com', 'demo@profilespike.com'];
+    const email = 'demo@profilespike.com'; // In real app, this would come from OAuth
+    
     const mockUser = {
       id: 'user_' + Date.now(),
-      email: 'demo@profilespike.com',
+      email: email,
       name: 'Demo User',
-      status: 'active'
+      status: 'active',
+      role: adminEmails.includes(email) ? 'admin' : 'user'
     };
     
     const session = {

@@ -1,288 +1,191 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../components/AuthContext';
+import { SimpleLoginModal } from '../components/SimpleLoginModal';
 
-import React, { useState, useEffect } from "react";
-import { User } from "@/api/entities";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Sparkles,
-  FileText,
-  Linkedin,
-  Briefcase,
-  MessageSquare,
-  TrendingUp,
-  Users,
-  Shield,
-  Zap,
-  ArrowRight,
-  CheckCircle,
-  Star,
-  GraduationCap,
-  User as UserIcon,
-  Globe,
-  BookOpen,
-  Target,
-  Award,
-  Brain,
-  Rocket,
-  DollarSign // Added DollarSign import
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/utils";
-import { motion, AnimatePresence } from "framer-motion";
-import UserCounter from "../components/UserCounter";
-import InteractiveResumeDemo from "../components/InteractiveResumeDemo";
-import SuccessStories from "../components/SuccessStories";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
-import { useAuth } from "@/components/AuthContext"; // Corrected import path
-
-const rotatingMessages = [
-  {
-    persona: "Recent Graduate",
-    message: "Transform your potential into your first breakthrough role",
-    color: "from-emerald-400 to-teal-500"
-  },
-  {
-    persona: "Career Veteran",
-    message: "Translate your experience into your next chapter",
-    color: "from-blue-400 to-indigo-500"
-  },
-  {
-    persona: "Career Changer",
-    message: "Navigate your pivot to a new field",
-    color: "from-purple-400 to-pink-500"
-  },
-  {
-    persona: "Tenured Professional",
-    message: "Elevate your expertise to new heights",
-    color: "from-orange-400 to-red-500"
-  }
-];
-
-const features = [
-  {
-    title: "AI Resume & LinkedIn Analyzer",
-    description: "ATS-optimized scanning with real-time suggestions and Enhancv-style formatting options",
-    icon: FileText,
-    color: "bg-gradient-to-br from-blue-500 to-blue-600",
-    preview: "Get 95+ ATS score"
-  },
-  {
-    title: "Interview Prep Simulator",
-    description: "Text and voice practice with STAR method coaching and tone analysis",
-    icon: MessageSquare,
-    color: "bg-gradient-to-br from-green-500 to-emerald-600",
-    preview: "Practice 100+ scenarios"
-  },
-  {
-    title: "Portfolio Review Engine",
-    description: "Analyze GitHub, Behance, or personal sites for recruiter impact and SEO optimization",
-    icon: Briefcase,
-    color: "bg-gradient-to-br from-purple-500 to-violet-600",
-    preview: "Boost visibility 3x"
-  },
-  {
-    title: "Compensation Analyzer",
-    description: "Market salary data, negotiation strategies, and personalized compensation recommendations",
-    icon: DollarSign,
-    color: "bg-gradient-to-br from-green-500 to-emerald-600",
-    preview: "Know your worth"
-  },
-  {
-    title: "Veteran Translation Tool",
-    description: "Convert military experience into civilian-friendly language that recruiters understand",
-    icon: Award,
-    color: "bg-gradient-to-br from-red-500 to-rose-600",
-    preview: "Decode military skills"
-  },
-  {
-    title: "Reskilling Radar",
-    description: "AI-powered gap analysis with personalized learning paths from top platforms",
-    icon: Brain,
-    color: "bg-gradient-to-br from-indigo-500 to-blue-600",
-    preview: "Close skill gaps fast"
-  },
-  {
-    title: "Career Story Builder",
-    description: "Create compelling narrative resumes that showcase your unique professional journey",
-    icon: BookOpen,
-    color: "bg-gradient-to-br from-teal-500 to-cyan-600",
-    preview: "Tell your story powerfully"
-  }
-];
-
-const userTypes = [
-  {
-    id: 'recent_grad',
-    title: 'Recent Graduate',
-    description: 'Launch your career with AI-powered guidance',
-    icon: GraduationCap,
-    color: 'emerald',
-    benefits: ['Entry-level resume optimization', 'LinkedIn profile setup', 'First-time interview prep', 'Skill gap analysis']
-  },
-  {
-    id: 'professional',
-    title: 'Tenured Professional',
-    description: 'Advance to executive-level opportunities',
-    icon: UserIcon,
-    color: 'blue',
-    benefits: ['Executive resume strategies', 'Leadership positioning', 'Career transition guidance', 'Executive interview prep']
-  },
-  {
-    id: 'freelancer',
-    title: 'Freelancer & Creator',
-    description: 'Build your independent brand and portfolio',
-    icon: Zap,
-    color: 'purple',
-    benefits: ['Portfolio optimization', 'Client-focused positioning', 'Rate negotiation prep', 'Personal brand building']
-  },
-  {
-    id: 'skilled_veteran',
-    title: 'Skilled Veteran',
-    description: 'Translate military experience into high-impact civilian careers',
-    icon: Award,
-    color: 'red',
-    benefits: ['Military skill translation', 'Federal resume guidance', 'Leadership impact framing', 'Corporate culture prep']
-  }
-];
-
-const testimonials = [
-  {
-    name: "Alex Thompson",
-    role: "Software Engineer",
-    company: "Meta",
-    content: "ProfileSpike's AI helped me improve my resume score from 67 to 96. I got 5 interviews in two weeks!",
-    avatar: "AT",
-    persona: "recent_grad"
-  },
-  {
-    name: "Maria Rodriguez",
-    role: "Senior Product Manager",
-    company: "Spotify",
-    content: "The career story builder transformed how I present my 10 years of experience. Finally got that director role!",
-    avatar: "MR",
-    persona: "professional"
-  },
-  {
-    name: "David Kim",
-    role: "Logistics Manager",
-    company: "Amazon",
-    content: "The Veteran Translation Engine was incredible. It turned my military jargon into language that recruiters understood immediately.",
-    avatar: "DK",
-    persona: "skilled_veteran"
-  },
-  {
-    name: "Sarah Johnson",
-    role: "Freelance Developer",
-    company: "Independent",
-    content: "My portfolio review score went from 73 to 94. Client inquiries increased by 200% in one month!",
-    avatar: "SJ",
-    persona: "freelancer"
-  }
-];
-
-export default function Home() {
-  const { user, userProfile } = useAuth();
+function Home() {
   const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   
-  const isAuthenticated = !!user; // Simple check based on prop
+  // Rotating hero messages for premium feel
+  const rotatingMessages = [
+    {
+      persona: "Recent Graduate",
+      message: "Transform your potential into your first breakthrough role",
+      gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+    },
+    {
+      persona: "Career Veteran", 
+      message: "Translate your experience into your next chapter",
+      gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+    },
+    {
+      persona: "Career Changer",
+      message: "Navigate your pivot to a new field with confidence",
+      gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+    },
+    {
+      persona: "Executive",
+      message: "Elevate your leadership presence to new heights",
+      gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+    }
+  ];
 
+  // Rotate messages every 4 seconds for dynamic experience
   useEffect(() => {
-    // Rotate messaging every 3 seconds
     const interval = setInterval(() => {
       setCurrentMessageIndex((prev) => (prev + 1) % rotatingMessages.length);
-    }, 3000);
-
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
-
-  const getInitials = (name) => {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return name[0].toUpperCase();
-  };
-
+  
+  const currentMessage = rotatingMessages[currentMessageIndex];
+  
+  const isAuthenticated = !!user;
+  
   const handleGetStarted = () => {
     if (isAuthenticated) {
-      if (userProfile && userProfile.onboarded) { // Check for completed profile
-        navigate(createPageUrl("Dashboard"));
+      if (userProfile && userProfile.onboarded) {
+        navigate('/dashboard');
       } else {
-        navigate(createPageUrl("Onboarding"));
+        navigate('/dashboard'); // For now, go to dashboard
       }
     } else {
-      User.loginWithRedirect(window.location.origin + createPageUrl("Home"));
+      setShowLoginModal(true);
     }
   };
 
-  const handleTryFreeReview = () => {
+  const handleTryAnalyzer = (path) => {
     if (isAuthenticated) {
-      navigate(createPageUrl("ResumeAnalyzer"));
+      navigate(path);
     } else {
-      User.loginWithRedirect(window.location.origin + createPageUrl("ResumeAnalyzer"));
+      setShowLoginModal(true);
     }
   };
-
-  const currentMessage = rotatingMessages[currentMessageIndex];
-
+  
   return (
-    <div className="min-h-screen bg-white">
-      {/* Sticky Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/908552440_Screenshot2025-08-13at75643PM.png" alt="ProfileSpike Logo" className="w-10 h-10 rounded-xl" />
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: 'white', 
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif' 
+    }}>
+      
+      {/* Premium Navigation */}
+      <nav style={{ 
+        position: 'fixed', 
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000, 
+        backgroundColor: 'rgba(255,255,255,0.8)', 
+        backdropFilter: 'blur(20px) saturate(180%)',
+        borderBottom: '1px solid rgba(0,0,0,0.08)',
+        padding: '16px 0'
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '20px',
+                boxShadow: '0 8px 25px rgba(102,126,234,0.3)'
+              }}>
+                PS
+              </div>
               <div>
-                <h1 className="text-xl font-bold text-black tracking-tight">ProfileSpike</h1>
-                <p className="text-sm text-gray-500">AI + Human Career Coach</p>
+                <h1 style={{ 
+                  fontSize: '24px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a', 
+                  margin: 0,
+                  letterSpacing: '-0.5px'
+                }}>
+                  ProfileSpike
+                </h1>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: '#6b7280', 
+                  margin: 0,
+                  fontWeight: '500',
+                  letterSpacing: '0.5px'
+                }}>
+                  AI + Human Career Coach
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isAuthenticated ? (
-                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="flex items-center gap-2 px-2">
-                        <Avatar className="w-9 h-9">
-                          <AvatarImage src={user?.picture} alt={user?.full_name} />
-                          <AvatarFallback>{getInitials(user?.full_name)}</AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Welcome, {user?.first_name || user?.full_name?.split(' ')[0]}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild><Link to={createPageUrl("Dashboard")}>Dashboard</Link></DropdownMenuItem>
-                      <DropdownMenuItem asChild><Link to={createPageUrl("Profile")}>Account Settings</Link></DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => User.logout()} className="text-red-500 focus:bg-red-50 focus:text-red-600">
-                        Log Out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button 
+                    onClick={() => navigate('/dashboard')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: '#374151'
+                    }}
+                  >
+                    Dashboard
+                  </button>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    background: '#667eea',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => navigate('/profile')}
+                  >
+                    {user?.email?.[0].toUpperCase() || 'U'}
+                  </div>
+                </div>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={() => User.loginWithRedirect(window.location.origin + createPageUrl("Home"))}>
+                  <button 
+                    onClick={() => setShowLoginModal(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      color: '#374151'
+                    }}
+                  >
                     Sign In
-                  </Button>
-                  <Button onClick={handleGetStarted} className="bg-black hover:bg-gray-900 text-white rounded-xl">
-                    Get Started Free
-                  </Button>
+                  </button>
+                  <button 
+                    onClick={handleGetStarted}
+                    style={{
+                      background: 'black',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Get Started
+                  </button>
                 </>
               )}
             </div>
@@ -290,357 +193,398 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-6 py-20 lg:py-32">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <h2 className="text-5xl lg:text-6xl font-bold text-black mb-6 tracking-tight leading-tight">
-              Your AI + Human Career Coach,<br />
-              <span className="text-gray-600">Built for Real-World</span><br />
-              <span className={`bg-gradient-to-r ${currentMessage.color} bg-clip-text text-transparent`}>
-                Transitions
+      {/* Breathtaking Hero Section */}
+      <section style={{ 
+        background: currentMessage.gradient,
+        color: 'white',
+        padding: '160px 40px 120px',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Animated background elements */}
+        <div style={{
+          position: 'absolute',
+          top: '20%',
+          left: '10%',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+          borderRadius: '50%',
+          animation: 'float 8s ease-in-out infinite'
+        }}></div>
+        <div style={{
+          position: 'absolute',
+          top: '60%',
+          right: '15%',
+          width: '200px',
+          height: '200px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+          borderRadius: '50%',
+          animation: 'float 6s ease-in-out infinite reverse'
+        }}></div>
+        
+        <div style={{ maxWidth: '1000px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <h1 style={{ 
+            fontSize: 'clamp(48px, 6vw, 80px)', 
+            fontWeight: '800', 
+            marginBottom: '32px',
+            lineHeight: '1.1',
+            letterSpacing: '-2px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            Your AI + Human<br />
+            <span style={{ 
+              background: 'linear-gradient(45deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Career Coach
+            </span>
+          </h1>
+          {/* Animated message transition */}
+          <div style={{ 
+            minHeight: '80px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '48px'
+          }}>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: '500',
+              opacity: 0.95,
+              lineHeight: '1.4',
+              maxWidth: '800px',
+              transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+            }}>
+              <span style={{ 
+                fontWeight: '700',
+                fontSize: '16px',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                opacity: 0.8
+              }}>
+                {currentMessage.persona}
               </span>
-            </h2>
-
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={currentMessageIndex}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed"
-              >
-                <span className="font-semibold">{currentMessage.persona}:</span> {currentMessage.message}
-              </motion.p>
-            </AnimatePresence>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <Button
-                onClick={handleTryFreeReview}
-                className="bg-black hover:bg-gray-900 text-white px-8 py-4 text-lg rounded-xl transition-all duration-200 transform hover:scale-105"
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Try Free Resume Review
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button
-                onClick={handleGetStarted}
-                variant="outline"
-                className="px-8 py-4 text-lg rounded-xl border-2 border-gray-200 hover:border-gray-300"
-              >
-                <Brain className="w-5 h-5 mr-2" />
-                Get Reskilling Plan
-              </Button>
-              {isAuthenticated && userProfile && userProfile.onboarded && (
-                <Button
-                  onClick={() => navigate(createPageUrl("Dashboard"))}
-                  variant="outline"
-                  className="px-8 py-4 text-lg rounded-xl border-2 border-gray-200 hover:border-gray-300"
-                >
-                  <Target className="w-5 h-5 mr-2" />
-                  View Your Dashboard
-                </Button>
-              )}
+              <br />
+              {currentMessage.message}
             </div>
-
-            <div className="flex items-center justify-center gap-8 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                3 Free AI Analyses
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            gap: '20px', 
+            justifyContent: 'center', 
+            flexWrap: 'wrap',
+            marginBottom: '64px'
+          }}>
+            <button 
+              onClick={() => handleTryAnalyzer('/resume-analyzer')}
+              style={{
+                background: 'rgba(255,255,255,0.95)',
+                color: '#1a1a1a',
+                border: 'none',
+                padding: '20px 36px',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '18px',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-3px) scale(1.05)';
+                e.target.style.boxShadow = '0 15px 35px rgba(0,0,0,0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0) scale(1)';
+                e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+              }}
+            >
+              📄 Try Free Resume Review
+            </button>
+            <button 
+              onClick={() => handleTryAnalyzer('/linkedin-optimizer')}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                color: 'white',
+                border: '2px solid rgba(255,255,255,0.3)',
+                padding: '18px 34px',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '18px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.25)';
+                e.target.style.transform = 'translateY(-3px) scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.15)';
+                e.target.style.transform = 'translateY(0) scale(1)';
+              }}
+            >
+              🔗 Get LinkedIn Analysis
+            </button>
+          </div>
+          
+          {/* Trust indicators with animation */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '40px', 
+            fontSize: '16px',
+            opacity: 0.9,
+            flexWrap: 'wrap'
+          }}>
+            {[
+              { icon: '✓', text: '3 Free AI Analyses' },
+              { icon: '🛡️', text: 'Enterprise Security' },
+              { icon: '⚡', text: 'Instant Results' },
+              { icon: '🌟', text: '10,000+ Users' }
+            ].map((item, index) => (
+              <div key={index} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                fontWeight: '500'
+              }}>
+                <span style={{ fontSize: '18px' }}>{item.icon}</span> 
+                {item.text}
               </div>
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-blue-500" />
-                Enterprise Security
-              </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-500" />
-                Instant Results
-              </div>
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-500" />
-                <UserCounter /> Users
-              </div>
-            </div>
-          </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Interactive Resume Demo Section */}
-      <section className="py-20 bg-white">
-        <InteractiveResumeDemo />
-      </section>
-
-      {/* Success Stories Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <SuccessStories />
-      </section>
-
-      {/* Features Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="text-center mb-16"
-          >
-            <h3 className="text-4xl lg:text-5xl font-bold text-black mb-6">
+      {/* Sophisticated Features Section */}
+      <section style={{ padding: '120px 40px', backgroundColor: '#fafbfc' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+            <h2 style={{ 
+              fontSize: 'clamp(36px, 5vw, 56px)', 
+              fontWeight: '700', 
+              color: '#1a1a1a',
+              marginBottom: '24px',
+              letterSpacing: '-1px'
+            }}>
               Everything You Need to Succeed
-            </h3>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Comprehensive AI-powered tools inspired by the best in career development
+            </h2>
+            <p style={{ 
+              fontSize: '22px', 
+              color: '#6b7280',
+              maxWidth: '600px',
+              margin: '0 auto',
+              lineHeight: '1.5',
+              fontWeight: '400'
+            }}>
+              Comprehensive AI-powered tools designed for the modern professional
             </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                <Card className="border-0 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full group">
-                  <CardContent className="p-8">
-                    <div className="flex items-start gap-4 mb-6">
-                      <div className={`w-14 h-14 ${feature.color} rounded-2xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                        <feature.icon className="w-7 h-7 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-xl font-bold text-black mb-2">{feature.title}</h4>
-                        <p className="text-gray-600 leading-relaxed mb-4">{feature.description}</p>
-                        <Badge variant="outline" className="text-xs font-medium">
-                          {feature.preview}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
           </div>
-        </div>
-      </section>
-
-      {/* User Types Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-center mb-16"
-          >
-            <h3 className="text-4xl lg:text-5xl font-bold text-black mb-6">
-              Personalized for Your Journey
-            </h3>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Our AI adapts to your unique career stage and goals
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {userTypes.map((type, index) => (
-              <motion.div
-                key={type.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
+          
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
+            gap: '32px' 
+          }}>
+            {[
+              {
+                icon: '📄',
+                title: 'AI Resume & LinkedIn Analyzer',
+                description: 'Advanced ATS optimization with real-time suggestions and professional formatting guidance.',
+                gradient: 'linear-gradient(135deg, #667eea, #764ba2)',
+                onClick: () => handleTryAnalyzer('/resume-analyzer')
+              },
+              {
+                icon: '🔗',
+                title: 'LinkedIn Profile Optimizer',
+                description: 'Intelligent profile analysis with recruiter-focused optimization and visibility enhancement.',
+                gradient: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+                onClick: () => handleTryAnalyzer('/linkedin-optimizer')
+              },
+              {
+                icon: '💼',
+                title: 'Portfolio Review Engine',
+                description: 'Comprehensive analysis of GitHub, Behance, or personal portfolios for maximum impact.',
+                gradient: 'linear-gradient(135deg, #a8edea, #fed6e3)',
+                onClick: () => handleTryAnalyzer('/dashboard')
+              },
+              {
+                icon: '🎯',
+                title: 'Interview Prep Simulator',
+                description: 'Advanced practice scenarios with AI coaching and personalized feedback systems.',
+                gradient: 'linear-gradient(135deg, #43e97b, #38f9d7)',
+                onClick: () => handleTryAnalyzer('/dashboard')
+              },
+              {
+                icon: '💰',
+                title: 'Compensation Analyzer',
+                description: 'Market-leading salary intelligence with strategic negotiation guidance.',
+                gradient: 'linear-gradient(135deg, #fa709a, #fee140)',
+                onClick: () => handleTryAnalyzer('/dashboard')
+              },
+              {
+                icon: '🧠',
+                title: 'Reskilling Radar',
+                description: 'AI-powered skill gap analysis with curated learning path recommendations.',
+                gradient: 'linear-gradient(135deg, #a8edea, #fed6e3)',
+                onClick: () => handleTryAnalyzer('/dashboard')
+              }
+            ].map((feature, index) => (
+              <div 
+                key={index} 
+                onClick={feature.onClick}
+                style={{
+                  background: 'rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  padding: '40px',
+                  borderRadius: '24px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
+                  textAlign: 'center',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 50px rgba(0,0,0,0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.06)';
+                }}
               >
-                <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 h-full">
-                  <CardHeader className="text-center p-6">
-                    {/* The template string for background color needs to be handled carefully in Tailwind JIT mode.
-                        For dynamic classes like bg-${type.color}-500, ensure they are present in full in the source
-                        code for Tailwind to pick them up, or use safe list in tailwind.config.js.
-                        Here, emerald-500, blue-500, purple-500, orange-500, red-500 should be pre-scanned.
-                    */}
-                    <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center bg-${type.color}-500 text-white`}>
-                      <type.icon className="w-8 h-8" />
-                    </div>
-                    <CardTitle className="text-lg font-bold text-black mb-2">
-                      {type.title}
-                    </CardTitle>
-                    <p className="text-gray-600 text-sm leading-relaxed">
-                      {type.description}
-                    </p>
-                  </CardHeader>
-                  <CardContent className="p-6 pt-0">
-                    <div className="space-y-2">
-                      {type.benefits.map((benefit, i) => (
-                        <div key={i} className="flex items-center text-sm text-gray-600">
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
-                          {benefit}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-center mb-16"
-          >
-            <h3 className="text-4xl lg:text-5xl font-bold text-black mb-6">
-              Trusted by Professionals Worldwide
-            </h3>
-            <p className="text-xl text-gray-600">
-              Trusted by job seekers of all ages, geographies, industries, and skill levels
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-              >
-                <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 h-full">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                    <p className="text-gray-700 mb-6 leading-relaxed text-sm">"{testimonial.content}"</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {testimonial.avatar}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-black text-sm">{testimonial.name}</p>
-                        <p className="text-xs text-gray-500">{testimonial.role} at {testimonial.company}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Referral Engine Preview */}
-      <section className="py-20 bg-gradient-to-br from-indigo-50 to-purple-50">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <div className="mb-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8 text-white" />
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: feature.gradient
+                }}></div>
+                
+                <div style={{ 
+                  fontSize: '56px', 
+                  marginBottom: '24px',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                }}>
+                  {feature.icon}
+                </div>
+                <h3 style={{ 
+                  fontSize: '24px', 
+                  fontWeight: '700', 
+                  color: '#1a1a1a',
+                  marginBottom: '16px',
+                  letterSpacing: '-0.5px'
+                }}>
+                  {feature.title}
+                </h3>
+                <p style={{ 
+                  color: '#6b7280', 
+                  lineHeight: '1.6',
+                  fontSize: '16px',
+                  fontWeight: '400'
+                }}>
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="text-3xl lg:text-4xl font-bold text-black mb-4">
-                Share & Earn Free Reviews
-              </h3>
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                Refer a friend and you both get 5 free AI analyses. Help your network while growing your credits.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-100 mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h4 className="font-semibold text-black mb-2">Share Your Link</h4>
-                  <p className="text-sm text-gray-600">Get a unique referral link to share</p>
-                </div>
-                <div>
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <h4 className="font-semibold text-black mb-2">Friend Signs Up</h4>
-                  <p className="text-sm text-gray-600">They get 3 free analyses to start</p>
-                </div>
-                <div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <Star className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <h4 className="font-semibold text-black mb-2">You Both Win</h4>
-                  <p className="text-sm text-gray-600">5 bonus credits for each of you</p>
-                </div>
-              </div>
-            </div>
-
-            {isAuthenticated ? (
-              <Button
-                onClick={() => navigate(createPageUrl("Profile"))}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg rounded-xl"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                Get My Referral Link
-              </Button>
-            ) : (
-              <Button
-                onClick={() => User.loginWithRedirect(window.location.origin + createPageUrl("Profile"))}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg rounded-xl"
-              >
-                <Users className="w-5 h-5 mr-2" />
-                Join & Start Referring
-              </Button>
-            )}
-          </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-black text-white">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+      {/* Elegant CTA Section */}
+      <section style={{ 
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+        color: 'white',
+        padding: '120px 40px',
+        textAlign: 'center',
+        position: 'relative'
+      }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <h2 style={{ 
+            fontSize: 'clamp(36px, 5vw, 56px)', 
+            fontWeight: '700', 
+            marginBottom: '32px',
+            letterSpacing: '-1px'
+          }}>
+            Ready to Transform Your Career?
+          </h2>
+          <p style={{ 
+            fontSize: '22px', 
+            marginBottom: '48px',
+            opacity: 0.8,
+            lineHeight: '1.5',
+            fontWeight: '400'
+          }}>
+            Join thousands of professionals who've elevated their careers with ProfileSpike.
+          </p>
+          <button 
+            onClick={handleGetStarted}
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: 'white',
+              border: 'none',
+              padding: '20px 40px',
+              borderRadius: '16px',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '20px',
+              boxShadow: '0 8px 25px rgba(102,126,234,0.3)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              letterSpacing: '-0.3px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-3px) scale(1.05)';
+              e.target.style.boxShadow = '0 15px 40px rgba(102,126,234,0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0) scale(1)';
+              e.target.style.boxShadow = '0 8px 25px rgba(102,126,234,0.3)';
+            }}
           >
-            <h3 className="text-4xl lg:text-5xl font-bold mb-6">
-              Ready to Transform Your Career?
-            </h3>
-            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join <UserCounter className="text-white" /> others who've already elevated their career pursuits with AI + Human powered insights.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <Button
-                onClick={handleGetStarted}
-                className="bg-white hover:bg-gray-100 text-black px-8 py-4 text-lg rounded-xl transition-all duration-200 transform hover:scale-105"
-              >
-                <Sparkles className="w-5 h-5 mr-2" />
-                Start Your Journey Today
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button
-                onClick={handleTryFreeReview}
-                variant="outline"
-                className="border-gray-400 text-white hover:bg-white hover:text-black px-8 py-4 text-lg rounded-xl"
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Try Free Resume Review
-              </Button>
-            </div>
-            <p className="text-sm text-gray-400">
-              3 free AI analyses included • No credit card required • Start in 30 seconds
-            </p>
-          </motion.div>
+            ✨ Start Your Journey Today
+          </button>
+          <p style={{ 
+            fontSize: '16px', 
+            opacity: 0.6,
+            marginTop: '32px',
+            fontWeight: '400'
+          }}>
+            3 free AI analyses included • No credit card required • Start in 30 seconds
+          </p>
         </div>
       </section>
+
+      {/* Login Modal */}
+      <SimpleLoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)} 
+      />
+
+      {/* Add CSS animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+        }
+      `}</style>
+
     </div>
   );
 }
+
+export default Home;

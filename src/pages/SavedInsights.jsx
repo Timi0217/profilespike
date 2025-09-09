@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import ReactMarkdown from 'react-markdown';
 import { createPageUrl } from '@/utils';
+import { useAuth } from '@/components/AuthContext';
 
 
 const InsightIcon = ({ type, status }) => {
@@ -98,7 +99,8 @@ const getStatusBadgeClass = (status) => {
   }
 };
 
-export default function SavedInsights({ user }) {
+export default function SavedInsights() {
+  const { user } = useAuth();
   const [insights, setInsights] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -112,7 +114,7 @@ export default function SavedInsights({ user }) {
   const fetchData = async () => {
       if (user) {
         try {
-          // Fetch both saved insights and all analyses
+          // Fetch both saved insights and all analyses (including inactive for historical data)
           const saved = await SavedInsight.filter({ created_by: user.email }, '-created_date');
           const analyses = await Analysis.filter({ created_by: user.email }, '-created_date');
           
