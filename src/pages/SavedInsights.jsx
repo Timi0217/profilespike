@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog"
 import ReactMarkdown from 'react-markdown';
 import { createPageUrl } from '@/utils';
-import { useAuth } from '@/components/AuthContext';
 
 
 const InsightIcon = ({ type, status }) => {
@@ -99,8 +98,7 @@ const getStatusBadgeClass = (status) => {
   }
 };
 
-export default function SavedInsights() {
-  const { user } = useAuth();
+export default function SavedInsights({ user }) {
   const [insights, setInsights] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -114,7 +112,7 @@ export default function SavedInsights() {
   const fetchData = async () => {
       if (user) {
         try {
-          // Fetch both saved insights and all analyses (including inactive for historical data)
+          // Fetch both saved insights and all analyses
           const saved = await SavedInsight.filter({ created_by: user.email }, '-created_date');
           const analyses = await Analysis.filter({ created_by: user.email }, '-created_date');
           
@@ -210,7 +208,7 @@ export default function SavedInsights() {
                         <CardHeader>
                         <div className="flex justify-between items-start">
                             <InsightIcon type={insight.insight_type} status={insight.status} />
-                            {insight.score && <Badge variant={insight.score > 80 ? 'default' : 'secondary'}>{insight.score}/100</Badge>}
+                            {insight.score && <Badge variant={insight.score > 80 ? 'default' : 'secondary'}>{insight.score}/100}</Badge>}
                         </div>
                         <CardTitle className="text-lg mt-4">{insight.title}</CardTitle>
                         </CardHeader>

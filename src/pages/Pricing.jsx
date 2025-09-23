@@ -44,7 +44,7 @@ const pricingPlans = [
   },
   {
     name: "Recent Graduate",
-    priceId: "price_1RvQjcGors2O0tZe4RAhW2IK", // TODO: Replace with actual Stripe price ID from dashboard
+    priceId: "price_1RvQjcGors2O0tZe4RAhW2IK", // You must create these products/prices in your Stripe Dashboard and replace the placeholder ID
     price: "$15",
     discountedPrice: "$12",
     period: "month",
@@ -66,7 +66,7 @@ const pricingPlans = [
   },
   {
     name: "Freelance & Professional & Veteran",
-    priceId: "price_1RvQpzGors2O0tZe77uf1Dao", // TODO: Replace with actual Stripe price ID from dashboard
+    priceId: "price_1RvQpzGors2O0tZe77uf1Dao", // You must create these products/prices in your Stripe Dashboard and replace the placeholder ID
     price: "$25",
     discountedPrice: "$20",
     period: "month",

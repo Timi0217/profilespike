@@ -1,6 +1,6 @@
 import Layout from "./Layout.jsx";
 
-import SimpleDashboard from "./SimpleDashboard2";
+import Dashboard from "./Dashboard";
 
 import Onboarding from "./Onboarding";
 
@@ -48,7 +48,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 
 const PAGES = {
     
-    Dashboard: SimpleDashboard,
+    Dashboard: Dashboard,
     
     Onboarding: Onboarding,
     
@@ -115,34 +115,55 @@ function PagesContent() {
     return (
         <Layout currentPageName={currentPage}>
             <Routes>            
-                    {/* Public routes */}
-                    <Route path="/" element={<Home />} />
-                    <Route path="/Home" element={<Home />} />
-                    <Route path="/Pricing" element={<Pricing />} />
-                    <Route path="/About" element={<About />} />
-                    <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
-                    <Route path="/TermsOfService" element={<TermsOfService />} />
-                    <Route path="/PaymentSuccess" element={<PaymentSuccess />} />
-                    <Route path="/PaymentCancel" element={<PaymentCancel />} />
-                    
-                    {/* Protected routes - require authentication */}
-                    <Route path="/dashboard" element={<SimpleDashboard />} />
-                    <Route path="/Dashboard" element={<SimpleDashboard />} />
-                    <Route path="/Onboarding" element={<Onboarding />} />
-                    <Route path="/ResumeAnalyzer" element={<ResumeAnalyzer />} />
-                    <Route path="/LinkedInOptimizer" element={<LinkedInOptimizer />} />
-                    <Route path="/Profile" element={<Profile />} />
-                    <Route path="/PortfolioReview" element={<PortfolioReview />} />
-                    <Route path="/InterviewPrep" element={<InterviewPrep />} />
-                    <Route path="/VeteranTranslator" element={<VeteranTranslator />} />
-                    <Route path="/ReskillingRadar" element={<ReskillingRadar />} />
-                    <Route path="/SavedInsights" element={<SavedInsights />} />
-                    <Route path="/HelpCenter" element={<HelpCenter />} />
-                    <Route path="/CompensationAnalyzer" element={<CompensationAnalyzer />} />
-                    <Route path="/CareerMapping" element={<CareerMapping />} />
-                    <Route path="/AdminDashboard" element={<AdminDashboard />} />
-                    <Route path="/AdminSetup" element={<AdminSetup />} />
-                </Routes>
+                
+                    <Route path="/" element={<Dashboard />} />
+                
+                
+                <Route path="/Dashboard" element={<Dashboard />} />
+                
+                <Route path="/Onboarding" element={<Onboarding />} />
+                
+                <Route path="/ResumeAnalyzer" element={<ResumeAnalyzer />} />
+                
+                <Route path="/LinkedInOptimizer" element={<LinkedInOptimizer />} />
+                
+                <Route path="/Profile" element={<Profile />} />
+                
+                <Route path="/PortfolioReview" element={<PortfolioReview />} />
+                
+                <Route path="/InterviewPrep" element={<InterviewPrep />} />
+                
+                <Route path="/Home" element={<Home />} />
+                
+                <Route path="/VeteranTranslator" element={<VeteranTranslator />} />
+                
+                <Route path="/ReskillingRadar" element={<ReskillingRadar />} />
+                
+                <Route path="/Pricing" element={<Pricing />} />
+                
+                <Route path="/About" element={<About />} />
+                
+                <Route path="/SavedInsights" element={<SavedInsights />} />
+                
+                <Route path="/HelpCenter" element={<HelpCenter />} />
+                
+                <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
+                
+                <Route path="/TermsOfService" element={<TermsOfService />} />
+                
+                <Route path="/AdminDashboard" element={<AdminDashboard />} />
+                
+                <Route path="/PaymentSuccess" element={<PaymentSuccess />} />
+                
+                <Route path="/PaymentCancel" element={<PaymentCancel />} />
+                
+                <Route path="/CompensationAnalyzer" element={<CompensationAnalyzer />} />
+                
+                <Route path="/CareerMapping" element={<CareerMapping />} />
+                
+                <Route path="/AdminSetup" element={<AdminSetup />} />
+                
+            </Routes>
         </Layout>
     );
 }

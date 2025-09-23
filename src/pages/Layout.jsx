@@ -4,10 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { User as UserIcon, BarChart3, FileText, Linkedin, Briefcase, MessageSquare, LayoutDashboard, CreditCard, Info, Award, Bookmark, ShieldCheck, DollarSign, ChevronRight, ChevronsUpDown, LogIn, TrendingUp, LogOut, ShieldAlert } from "lucide-react";
-import ErrorBoundary from "../components/ErrorBoundary";
-import LoadingSpinner from "../components/LoadingSpinner";
-import { AuthProvider, useAuth } from "../components/SimpleAuth";
-import { LoginModal } from "../components/LoginModal";
+import ErrorBoundary from "./components/ErrorBoundary";
+import LoadingSpinner from "./components/LoadingSpinner";
+import { AuthProvider, useAuth } from "./components/AuthContext";
+import SessionGuard from "./components/SessionGuard"; // New import for the external SessionGuard component
 import {
   Sidebar,
   SidebarContent,
@@ -38,7 +38,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from "@/components/ui/button";
-import { authService } from "@/api/auth";
+import { User } from "@/api/entities";
 import { Card, CardContent } from "@/components/ui/card";
 
 const mainNavItems = [
@@ -118,37 +118,24 @@ const MinimalLayout = ({ children }) => (
   <main className="flex-1 overflow-auto bg-white">{children}</main>
 );
 
-const LoginWallView = ({ onOpenLogin }) => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50">
-    <div className="w-full max-w-sm mx-auto px-6">
-      <div className="text-center mb-12">
-        <div className="w-20 h-20 bg-black rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-2xl shadow-black/20">
-          <img 
-            src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/908552440_Screenshot2025-08-13at75643PM.png" 
-            alt="ProfileSpike" 
-            className="w-12 h-12 rounded-xl"
-          />
-        </div>
-        <h1 className="text-4xl font-thin text-black mb-3 tracking-tight">ProfileSpike</h1>
-        <p className="text-lg text-gray-500 font-light mb-12">
-          Your AI Career Coach
+const LoginWallView = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <Card className="max-w-md mx-auto shadow-xl border-gray-100">
+      <CardContent className="p-8 text-center">
+        <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/908552440_Screenshot2025-08-13at75643PM.png" alt="ProfileSpike Logo" className="w-16 h-16 rounded-2xl mx-auto mb-6" />
+        <h2 className="text-2xl font-bold text-black mb-4">Sign In Required</h2>
+        <p className="text-gray-600 mb-6">
+          You need to be signed in to access this page.
         </p>
-      </div>
-      
-      <div className="space-y-6">
         <Button
-          onClick={onOpenLogin}
-          className="w-full bg-black hover:bg-gray-900 text-white py-4 rounded-2xl font-medium text-lg transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
+          onClick={() => User.loginWithRedirect(window.location.href)}
+          className="w-full bg-black hover:bg-gray-900 text-white py-3 rounded-xl"
         >
-          Continue
+          <LogIn className="w-4 h-4 mr-2" />
+          Sign In to Continue
         </Button>
-        
-        <p className="text-center text-xs text-gray-400 font-light leading-relaxed">
-          By continuing, you agree to our Terms of Service<br />
-          and Privacy Policy
-        </p>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   </div>
 );
 
@@ -176,7 +163,6 @@ const InactiveAccountView = ({ onLogout }) => (
 function LayoutContent({ children, currentPageName }) {
   const { user, userProfile, isLoading, refetch } = useAuth();
   const navigate = useNavigate();
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // No need for `location` here directly, it's used within `SessionGuard` if needed for onboarding checks.
   // `isFeaturesOpen` state moved back to `AppLayout` as it's a specific UI state for that component.
 
@@ -193,25 +179,23 @@ function LayoutContent({ children, currentPageName }) {
     "PaymentCancel"
   ];
 
-  // Skip loading screen - go straight to content for better UX
+  // While the session is being resolved, show a global loading spinner.
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner text="Initializing your session..." />
+      </div>
+    );
+  }
 
   // If the user's account is inactive, show a specific message.
   if (user && user.status === 'inactive') {
-    return <InactiveAccountView onLogout={async () => { await authService.signOut(); refetch(); navigate(createPageUrl("Home")); }} />;
+    return <InactiveAccountView onLogout={async () => { await User.logout(); refetch(); navigate(createPageUrl("Home")); }} />;
   }
 
   // If the user tries to access a protected page while not authenticated, show a login prompt.
   if (!publicPages.includes(currentPageName) && !user) {
-    return (
-      <>
-        <LoginWallView onOpenLogin={() => setIsLoginModalOpen(true)} />
-        <LoginModal 
-          isOpen={isLoginModalOpen} 
-          onClose={() => setIsLoginModalOpen(false)}
-          onSuccess={() => refetch()}
-        />
-      </>
-    );
+    return <LoginWallView />;
   }
   
   // For the Onboarding page, render only the page content without the full sidebar layout.
@@ -219,18 +203,21 @@ function LayoutContent({ children, currentPageName }) {
     return <MinimalLayout>{children}</MinimalLayout>;
   }
 
-  // For authenticated users accessing protected pages, render directly.
+  // For authenticated users accessing protected pages, wrap in the imported SessionGuard.
+  // The SessionGuard component is responsible for the user profile/onboarding checks and redirects.
   if (user && !publicPages.includes(currentPageName)) {
     return (
-      <AppLayout user={user} userProfile={userProfile} onLogout={async () => { await authService.signOut(); refetch(); }} currentPageName={currentPageName}>
-        {children}
-      </AppLayout>
+      <SessionGuard currentPageName={currentPageName}>
+        <AppLayout user={user} userProfile={userProfile} onLogout={async () => { await User.logout(); refetch(); }} currentPageName={currentPageName}>
+          {children}
+        </AppLayout>
+      </SessionGuard>
     );
   }
 
   // For public pages, render directly with AppLayout (whether authenticated or not).
   return (
-    <AppLayout user={user} userProfile={userProfile} onLogout={async () => { await authService.signOut(); refetch(); }} currentPageName={currentPageName}>
+    <AppLayout user={user} userProfile={userProfile} onLogout={async () => { await User.logout(); refetch(); }} currentPageName={currentPageName}>
       {children}
     </AppLayout>
   );
@@ -241,7 +228,6 @@ function LayoutContent({ children, currentPageName }) {
 function AppLayout({ children, user, userProfile, onLogout, currentPageName }) {
   const location = useLocation();
   const [isFeaturesOpen, setIsFeaturesOpen] = useState(true); // This state belongs here.
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -374,7 +360,7 @@ function AppLayout({ children, user, userProfile, onLogout, currentPageName }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                 <Button onClick={() => setIsLoginModalOpen(true)} className="w-full bg-black text-white hover:bg-gray-800">
+                 <Button onClick={() => User.loginWithRedirect(window.location.origin + createPageUrl("Home"))} className="w-full bg-black text-white hover:bg-gray-800">
                   <LogIn className="w-4 h-4 mr-2" />
                   Sign In
                 </Button>
@@ -416,7 +402,7 @@ function AppLayout({ children, user, userProfile, onLogout, currentPageName }) {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
-                  <Button size="sm" onClick={() => setIsLoginModalOpen(true)}>Sign In</Button>
+                  <Button size="sm" onClick={() => User.loginWithRedirect(window.location.origin + createPageUrl("Home"))}>Sign In</Button>
                 )}
               </div>
             </header>
@@ -427,11 +413,6 @@ function AppLayout({ children, user, userProfile, onLogout, currentPageName }) {
             <Toaster />
           </main>
         </div>
-        <LoginModal 
-          isOpen={isLoginModalOpen} 
-          onClose={() => setIsLoginModalOpen(false)}
-          onSuccess={() => {}} // Auth context will auto-update
-        />
       </SidebarProvider>
   );
 }

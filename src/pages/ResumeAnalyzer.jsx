@@ -1,651 +1,237 @@
 
 import React, { useState, useRef, useEffect } from "react";
+import { UserProfile } from "@/api/entities";
+import { Analysis } from "@/api/entities";
+import { UploadFile } from "@/api/integrations";
+import { processAnalysis } from "@/api/functions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { 
+  Upload, 
+  FileText, 
+  Sparkles, // Removed Zap from here
+  Send
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from 'framer-motion';
-import { useAuth } from "../components/AuthContext";
+import { createPageUrl } from "@/utils";
+import LoadingSpinner from "../components/LoadingSpinner";
+import EmailService from "@/components/email/EmailService";
+import { useAuth } from "@/components/AuthContext";
 
-const aiService = {
-  analyzeResume: async (resumeText, targetRole = '') => {
-    try {
-      const response = await fetch('http://localhost:3002/api/analyze-resume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ resumeText, targetRole })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Analysis failed');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Resume analysis error:', error);
-      throw error;
-    }
-  }
+const userTypeConfig = {
+  recent_grad: { bgGradient: "from-emerald-50 to-teal-50", accentColor: "text-emerald-600" },
+  professional: { bgGradient: "from-blue-50 to-indigo-50", accentColor: "text-blue-600" },
+  freelancer: { bgGradient: "from-purple-50 to-violet-50", accentColor: "text-purple-600" },
+  skilled_veteran: { bgGradient: "from-red-50 to-rose-50", accentColor: "text-red-600" },
+  ex_offender: { bgGradient: "from-orange-50 to-amber-50", accentColor: "text-orange-600" },
+  returning_citizen: { bgGradient: "from-sky-50 to-cyan-50", accentColor: "text-sky-600" }
 };
 
 export default function ResumeAnalyzer() {
   const { user, userProfile } = useAuth();
-  const navigate = useNavigate();
   const [file, setFile] = useState(null);
-  const [resumeText, setResumeText] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState(null);
-  const [analysisScore, setAnalysisScore] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentCredits, setCurrentCredits] = useState(null);
   const fileInputRef = useRef(null);
-  const [dragActive, setDragActive] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Simulate demo user for now
-  const demoUser = {
-    name: 'Demo User',
-    email: 'demo@profilespike.com',
-    credits: 3
-  };
+  useEffect(() => {
+    if(userProfile) {
+        setCurrentCredits(userProfile.credits_remaining);
+    }
+  }, [userProfile]);
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
-    
-    if (!selectedFile) return;
-
-    // Check file size (10MB limit)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB. Please choose a smaller file.');
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    // Validate file type
-    const validTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain'
-    ];
-
-    if (!validTypes.includes(selectedFile.type)) {
-      alert('Please select a PDF, Word document, or text file.');
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    setFile(selectedFile);
-    
-    // Extract text content for analysis
-    if (selectedFile.type === 'text/plain') {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setResumeText(e.target.result);
-      };
-      reader.readAsText(selectedFile);
+    if (selectedFile && (selectedFile.type === 'application/pdf' || 
+        selectedFile.type === 'application/msword' || 
+        selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+      setFile(selectedFile);
     } else {
-      // For PDF/Word files, we'll send the file to the backend for text extraction
-      // For now, we'll just indicate that the file is ready
-      setResumeText(''); // Clear any existing text
-      console.log('File ready for server-side text extraction:', selectedFile.name);
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a PDF or Word document.",
+        variant: "destructive"
+      });
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
+  const handleSubmit = async () => {
+    if (!file || !userProfile) return;
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const selectedFile = e.dataTransfer.files[0];
-      if (selectedFile.type === 'application/pdf' || 
-          selectedFile.type === 'application/msword' || 
-          selectedFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-          selectedFile.type === 'text/plain') {
-        setFile(selectedFile);
-        if (selectedFile.type === 'text/plain') {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            setResumeText(e.target.result);
-          };
-          reader.readAsText(selectedFile);
-        }
-      }
-    }
-  };
-
-  const handleAnalyze = async () => {
-    if (!file && !resumeText) {
-      alert('Please upload a file or paste your resume text.');
+    if (userProfile.subscription_status !== 'premium' && currentCredits <= 0) {
+      toast({
+        title: "Out of Credits",
+        description: "You've used all your free credits. Upgrade to premium for unlimited analyses.",
+        variant: "destructive"
+      });
       return;
     }
 
-    setIsAnalyzing(true);
-    setAnalysis(null);
+    setIsSubmitting(true);
 
     try {
-      // Show progress simulation for better UX
-      const steps = [
-        'Uploading resume...',
-        'Extracting text content...',
-        'Analyzing ATS compatibility...',
-        'Checking keyword density...',
-        'Generating AI-powered insights...'
-      ];
-
-      let stepIndex = 0;
-      const progressInterval = setInterval(() => {
-        if (stepIndex < steps.length - 1) {
-          stepIndex++;
-          setAnalysisScore(stepIndex * 20);
-        }
-      }, 1000);
-
-      let textContent = resumeText;
+      const { file_url } = await UploadFile({ file });
       
-      // If we have a file, extract text from it
-      if (file) {
-        if (file.type === 'text/plain') {
-          // Text file - already extracted
-          textContent = resumeText;
-        } else {
-          // For PDF/Word files, we need to extract text
-          const formData = new FormData();
-          formData.append('file', file);
-          
-          try {
-            const response = await fetch('http://localhost:3002/api/extract-text', {
-              method: 'POST',
-              body: formData
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              textContent = result.text;
-            } else {
-              // Fallback: use filename as indicator if text extraction fails
-              textContent = `Resume file: ${file.name}. Please implement proper PDF/Word text extraction on the backend.`;
-            }
-          } catch (extractError) {
-            console.warn('Text extraction failed, using fallback:', extractError);
-            textContent = `Resume file: ${file.name}. File uploaded successfully but text extraction needs backend implementation.`;
-          }
+      const analysisRecord = await Analysis.create({
+        analysis_type: 'resume',
+        file_url,
+        status: 'processing'
+      });
+      
+      if (userProfile.subscription_status !== 'premium') {
+        const newCreditsRemaining = Math.max(0, currentCredits - 1);
+        await UserProfile.update(userProfile.id, { credits_remaining: newCreditsRemaining });
+        setCurrentCredits(newCreditsRemaining);
+
+        if (newCreditsRemaining === 1) {
+          EmailService.sendLowCreditsEmail({ ...userProfile, credits_remaining: newCreditsRemaining });
         }
       }
 
-      // Call real AI API with extracted text
-      const analysisResult = await aiService.analyzeResume(textContent, '');
+      processAnalysis({ analysisId: analysisRecord.id }).catch(err => {
+        console.error("Analysis processing error:", err);
+      });
+
+      toast({
+        title: "Analysis Submitted! 🚀",
+        description: "Redirecting you to view the progress...",
+      });
       
-      clearInterval(progressInterval);
-      setAnalysisScore(100);
+      navigate(createPageUrl('SavedInsights'));
       
-      setAnalysis(analysisResult);
     } catch (error) {
-      console.error('Resume analysis failed:', error);
-      alert('Resume analysis failed. Please try again or check if the server is running.');
-    } finally {
-      setIsAnalyzing(false);
+      console.error("Error submitting analysis:", error);
+      toast({
+        title: "Submission Failed",
+        description: "Failed to submit analysis. Please try again.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
     }
   };
 
-  const ScoreCard = ({ title, score, description }) => (
-    <div style={{
-      background: 'rgba(255,255,255,0.9)',
-      backdropFilter: 'blur(10px)',
-      border: '1px solid rgba(255,255,255,0.2)',
-      borderRadius: '16px',
-      padding: '20px',
-      textAlign: 'center',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.06)'
-    }}>
-      <div style={{
-        fontSize: '28px',
-        fontWeight: '700',
-        color: score >= 90 ? '#10b981' : score >= 80 ? '#f59e0b' : score >= 70 ? '#ef4444' : '#6b7280',
-        marginBottom: '8px'
-      }}>
-        {score}/100
+  if (!user || !userProfile) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Card className="max-w-md mx-auto shadow-xl border-gray-100">
+          <CardContent className="p-8 text-center">
+            <FileText className="w-16 h-16 text-blue-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-black mb-4">Complete Your Profile</h2>
+            <p className="text-gray-600 mb-6">
+              Please complete your profile setup to access Resume Analyzer.
+            </p>
+            <Button
+              onClick={() => window.location.href = createPageUrl("Onboarding")}
+              className="w-full bg-black hover:bg-gray-900 text-white py-3 rounded-xl"
+            >
+              Complete Setup
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-      <div style={{
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#1a1a1a',
-        marginBottom: '4px'
-      }}>
-        {title}
-      </div>
-      <div style={{
-        fontSize: '12px',
-        color: '#6b7280'
-      }}>
-        {description}
-      </div>
-    </div>
-  );
+    );
+  }
+
+  const config = userTypeConfig[userProfile.user_type] || userTypeConfig.professional;
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif'
-    }}>
-      {/* Premium Header */}
-      <div style={{
-        backgroundColor: 'rgba(255,255,255,0.8)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        borderBottom: '1px solid rgba(0,0,0,0.08)',
-        padding: '24px 0'
-      }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className={`min-h-screen bg-gradient-to-br ${config.bgGradient}`}>
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center">
+              <FileText className="w-7 h-7 text-white" /> {/* Changed icon from Zap to FileText */}
+            </div>
             <div>
-              <h1 style={{
-                fontSize: '32px',
-                fontWeight: '700',
-                color: '#1a1a1a',
-                margin: 0,
-                letterSpacing: '-0.5px'
-              }}>
-                📄 AI Resume Analyzer
-              </h1>
-              <p style={{
-                fontSize: '16px',
-                color: '#6b7280',
-                margin: '4px 0 0 0',
-                fontWeight: '400'
-              }}>
-                Get instant ATS optimization and professional feedback
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  background: 'rgba(0,0,0,0.04)',
-                  border: 'none',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}
-              >
-                ← Dashboard
-              </button>
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}>
-                {demoUser.credits} Credits Remaining
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px 40px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
-          
-          {/* Upload Section */}
-          <div>
-            <div style={{
-              background: 'rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '48px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.06)'
-            }}>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: '#1a1a1a',
-                marginBottom: '24px',
-                letterSpacing: '-0.3px'
-              }}>
-                📄 Upload Your Resume
-              </h2>
-              
-              <div
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: dragActive ? '3px dashed #667eea' : file ? '3px dashed #10b981' : '3px dashed #cbd5e1',
-                  borderRadius: '20px',
-                  padding: '60px 40px',
-                  textAlign: 'center',
-                  background: dragActive ? 'rgba(102,126,234,0.08)' : file ? 'rgba(16,185,129,0.08)' : 'rgba(248,250,252,0.8)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  marginBottom: '32px',
-                  position: 'relative'
-                }}
-              >
-                {file ? (
-                  <>
-                    <div style={{ fontSize: '64px', marginBottom: '20px' }}>✅</div>
-                    <p style={{
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: '#10b981',
-                      marginBottom: '8px'
-                    }}>
-                      {file.name}
-                    </p>
-                    <p style={{
-                      fontSize: '14px',
-                      color: '#6b7280',
-                      marginBottom: '16px'
-                    }}>
-                      File ready for AI analysis
-                    </p>
-                    <p style={{
-                      fontSize: '12px',
-                      color: '#10b981',
-                      fontWeight: '500'
-                    }}>
-                      Click to change file
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ fontSize: '64px', marginBottom: '20px' }}>📄</div>
-                    <p style={{
-                      fontSize: '20px',
-                      fontWeight: '600',
-                      color: '#1a1a1a',
-                      marginBottom: '8px'
-                    }}>
-                      Upload Your Resume (PDF)
-                    </p>
-                    <p style={{
-                      fontSize: '16px',
-                      color: '#6b7280',
-                      marginBottom: '20px'
-                    }}>
-                      Drag & drop or click to browse
-                    </p>
-                    <div style={{
-                      display: 'inline-block',
-                      background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                      color: 'white',
-                      padding: '12px 24px',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      marginBottom: '16px'
-                    }}>
-                      Choose File
-                    </div>
-                    <p style={{
-                      fontSize: '12px',
-                      color: '#9ca3af'
-                    }}>
-                      Supports PDF, DOC, DOCX • Max 10MB
-                    </p>
-                  </>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  onChange={handleFileSelect}
-                  style={{ display: 'none' }}
-                />
-              </div>
-
-              {!file && (
-                <div style={{
-                  padding: '20px',
-                  background: 'rgba(102,126,234,0.05)',
-                  borderRadius: '12px',
-                  marginBottom: '24px',
-                  border: '1px solid rgba(102,126,234,0.1)'
-                }}>
-                  <details style={{ cursor: 'pointer' }}>
-                    <summary style={{
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#667eea',
-                      marginBottom: '12px',
-                      outline: 'none'
-                    }}>
-                      📝 Alternative: Paste resume text
-                    </summary>
-                    <textarea
-                      value={resumeText}
-                      onChange={(e) => setResumeText(e.target.value)}
-                      placeholder="If you don't have a PDF, you can paste your resume text here..."
-                      style={{
-                        width: '100%',
-                        height: '150px',
-                        padding: '16px',
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        borderRadius: '12px',
-                        fontSize: '14px',
-                        fontFamily: 'inherit',
-                        resize: 'vertical',
-                        background: 'rgba(255,255,255,0.9)',
-                        marginTop: '12px'
-                      }}
-                    />
-                  </details>
-                </div>
-              )}
-
-              <button
-                onClick={handleAnalyze}
-                disabled={(!file && !resumeText) || isAnalyzing}
-                style={{
-                  width: '100%',
-                  background: (!file && !resumeText) || isAnalyzing ? '#ccc' : 'linear-gradient(135deg, #667eea, #764ba2)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                  cursor: (!file && !resumeText) || isAnalyzing ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  boxShadow: (!file && !resumeText) || isAnalyzing ? 'none' : '0 4px 15px rgba(102,126,234,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                {isAnalyzing ? (
-                  <>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderRadius: '50%',
-                      borderTopColor: 'white',
-                      animation: 'spin 1s ease-in-out infinite'
-                    }} />
-                    Analyzing... ({analysisScore}%)
-                  </>
-                ) : (
-                  '🔍 Analyze Resume'
-                )}
-              </button>
+              <h1 className="text-3xl font-bold text-black tracking-tight">Resume Analyzer</h1>
+              <p className={`text-gray-700 font-medium ${config.accentColor}`}>Get ATS-optimized feedback powered by AI</p>
             </div>
           </div>
 
-          {/* Results Section */}
-          <div>
-            {!analysis ? (
-              <div style={{
-                background: 'rgba(255,255,255,0.8)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: '24px',
-                padding: '48px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
-                textAlign: 'center',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <div style={{ fontSize: '64px', marginBottom: '24px' }}>⚡</div>
-                <h3 style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: '#1a1a1a',
-                  marginBottom: '16px'
-                }}>
-                  Ready for AI Analysis
-                </h3>
-                <p style={{
-                  fontSize: '16px',
-                  color: '#6b7280',
-                  lineHeight: '1.6',
-                  maxWidth: '300px',
-                  margin: '0 auto'
-                }}>
-                  Upload your resume or paste the content to get instant ATS optimization suggestions and scoring.
-                </p>
-              </div>
+          <div className="flex items-center gap-4">
+            {userProfile.subscription_status === 'premium' ? (
+              <Badge className="bg-yellow-500 text-white px-3 py-1">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Premium - Unlimited
+              </Badge>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                style={{
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(20px)',
-                  borderRadius: '24px',
-                  padding: '32px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.06)'
-                }}
-              >
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                  <div style={{
-                    fontSize: '48px',
-                    fontWeight: '700',
-                    color: analysis.overall_score >= 90 ? '#10b981' : analysis.overall_score >= 80 ? '#f59e0b' : '#ef4444',
-                    marginBottom: '8px'
-                  }}>
-                    {analysis.overall_score}/100
-                  </div>
-                  <h3 style={{
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#1a1a1a',
-                    marginBottom: '4px'
-                  }}>
-                    Overall Resume Score
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>
-                    {analysis.overall_score >= 90 ? 'Excellent!' : 
-                     analysis.overall_score >= 80 ? 'Good!' : 
-                     analysis.overall_score >= 70 ? 'Needs improvement' : 'Requires significant work'}
-                  </p>
-                </div>
-
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '16px',
-                  marginBottom: '32px'
-                }}>
-                  <ScoreCard title="ATS Score" score={analysis.ats_score} description="Applicant Tracking System compatibility" />
-                  <ScoreCard title="Content" score={analysis.content_score} description="Content quality and relevance" />
-                  <ScoreCard title="Format" score={analysis.format_score} description="Structure and formatting" />
-                  <ScoreCard title="Keywords" score={analysis.keyword_score} description="Industry keyword usage" />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                  <div>
-                    <h4 style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: '#10b981',
-                      marginBottom: '12px'
-                    }}>
-                      ✓ Strengths
-                    </h4>
-                    <ul style={{
-                      listStyle: 'none',
-                      padding: 0,
-                      margin: 0
-                    }}>
-                      {analysis.strengths.map((strength, index) => (
-                        <li key={index} style={{
-                          fontSize: '14px',
-                          color: '#374151',
-                          marginBottom: '8px',
-                          paddingLeft: '16px',
-                          position: 'relative'
-                        }}>
-                          <span style={{
-                            position: 'absolute',
-                            left: 0,
-                            color: '#10b981'
-                          }}>•</span>
-                          {strength}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h4 style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: '#f59e0b',
-                      marginBottom: '12px'
-                    }}>
-                      ⚡ Improvements
-                    </h4>
-                    <ul style={{
-                      listStyle: 'none',
-                      padding: 0,
-                      margin: 0
-                    }}>
-                      {analysis.improvements.map((improvement, index) => (
-                        <li key={index} style={{
-                          fontSize: '14px',
-                          color: '#374151',
-                          marginBottom: '8px',
-                          paddingLeft: '16px',
-                          position: 'relative'
-                        }}>
-                          <span style={{
-                            position: 'absolute',
-                            left: 0,
-                            color: '#f59e0b'
-                          }}>•</span>
-                          {improvement}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </motion.div>
+              <Badge className="bg-black text-white px-3 py-1">
+                {currentCredits !== null ? `${currentCredits} credits remaining` : "Loading credits..."}
+              </Badge>
             )}
           </div>
         </div>
+
+        <div className="grid lg:grid-cols-5 gap-8">
+          <div className="lg:col-span-2">
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  Upload Resume
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div
+                  className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-gray-300 transition-colors cursor-pointer bg-gray-50"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2 font-medium">
+                    {file ? file.name : "Click to upload your resume"}
+                  </p>
+                  <p className="text-sm text-gray-500">PDF or Word documents</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </div>
+
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!file || isSubmitting || (userProfile.subscription_status !== 'premium' && (currentCredits === null || currentCredits <= 0))}
+                  className="w-full bg-black hover:bg-gray-900 text-white py-3 rounded-xl"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Submit for Analysis
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-3">
+            <Card className="border-0 shadow-lg h-full">
+              <CardContent className="p-12 text-center flex flex-col justify-center h-full">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                  Ready to analyze your resume?
+                </h3>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  Upload your resume to queue it for AI analysis. You will be redirected to the Insights page to watch the progress live.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-      
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

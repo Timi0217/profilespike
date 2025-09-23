@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { User } from "@/api/entities";
 import { UserProfile } from "@/api/entities";
-import { userProfileSchema } from "@/schemas/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,30 +141,6 @@ const countryOptions = [
   { value: 'ZAF', label: 'South Africa' },
 ];
 
-const getSelectedIconStyles = (color) => {
-  const colorMap = {
-    emerald: 'bg-emerald-500 text-white',
-    blue: 'bg-blue-500 text-white',
-    purple: 'bg-purple-500 text-white',
-    red: 'bg-red-500 text-white',
-    orange: 'bg-orange-500 text-white',
-    teal: 'bg-teal-500 text-white'
-  };
-  return colorMap[color] || 'bg-gray-500 text-white';
-};
-
-const getRingColor = (color) => {
-  const colorMap = {
-    emerald: 'ring-emerald-500',
-    blue: 'ring-blue-500',
-    purple: 'ring-purple-500',
-    red: 'ring-red-500',
-    orange: 'ring-orange-500',
-    teal: 'ring-teal-500'
-  };
-  return colorMap[color] || 'ring-gray-500';
-};
-
 export default function Onboarding() {
   const { user, userProfile, isLoading, refetch } = useAuth();
   const navigate = useNavigate();
@@ -183,7 +158,6 @@ export default function Onboarding() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     // This effect pre-populates form data from an existing (but incomplete) profile
@@ -211,41 +185,8 @@ export default function Onboarding() {
     setFormData(prev => ({ ...prev, user_type: userType }));
   };
 
-  const validateField = (field, value) => {
-    const errors = { ...validationErrors };
-    
-    switch (field) {
-      case 'linkedin_url':
-        if (value && !value.includes('linkedin.com/in/')) {
-          errors[field] = 'Please enter a valid LinkedIn profile URL';
-        } else {
-          delete errors[field];
-        }
-        break;
-      case 'portfolio_url':
-        if (value && value.trim() && !value.match(/^https?:\/\/.+\..+/)) {
-          errors[field] = 'Please enter a valid URL starting with http:// or https://';
-        } else {
-          delete errors[field];
-        }
-        break;
-      case 'referral_code':
-        if (value && !/^[A-Z0-9]{6,10}$/.test(value.toUpperCase())) {
-          errors[field] = 'Referral code should be 6-10 characters (letters and numbers only)';
-        } else {
-          delete errors[field];
-        }
-        break;
-      default:
-        delete errors[field];
-    }
-    
-    setValidationErrors(errors);
-  };
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    validateField(field, value);
   };
 
   const handleNext = () => {
@@ -260,44 +201,10 @@ export default function Onboarding() {
     }
   };
 
-  const generateReferralCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
-    
-    // Re-validate all fields before submission
-    validateField('linkedin_url', formData.linkedin_url);
-    validateField('portfolio_url', formData.portfolio_url);
-    validateField('referral_code', formData.referral_code);
-    
-    // Check for validation errors
-    if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors:', validationErrors);
-      setError('Please fix the validation errors before continuing');
-      setIsSubmitting(false);
-      return;
-    }
-    
     try {
-      // Validate form data
-      const validation = userProfileSchema.safeParse(formData);
-      if (!validation.success) {
-        setError(validation.error.errors[0].message);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Generate a unique referral code for this user
-      const userReferralCode = generateReferralCode();
-
       let profileData = {
         user_type: formData.user_type,
         first_name: formData.first_name,
@@ -307,8 +214,7 @@ export default function Onboarding() {
         country: formData.country,
         linkedin_url: formData.linkedin_url,
         portfolio_url: formData.portfolio_url,
-        used_referral_code: formData.referral_code, // Track what referral code they used
-        my_referral_code: userReferralCode, // Generate their own referral code
+        referral_code: formData.referral_code,
         onboarded: true, 
         credits_remaining: 3,
         subscription_status: 'free'
@@ -324,19 +230,14 @@ export default function Onboarding() {
 
       // Handle referral logic before creating/updating the profile
       if (formData.referral_code) {
-        const referrers = await UserProfile.filter({ my_referral_code: formData.referral_code });
+        const referrers = await UserProfile.filter({ referral_code: formData.referral_code });
         if (referrers.length > 0) {
           const referrerProfile = referrers[0];
-          // Give 5 bonus credits to the referrer
           await UserProfile.update(referrerProfile.id, {
             credits_remaining: (referrerProfile.credits_remaining || 0) + 5
           });
-          // Give 2 bonus credits to the new user
-          profileData.credits_remaining += 2;
+          profileData.credits_remaining += 5;
           profileData.referred_by_user_id = referrerProfile.created_by;
-          console.log(`Referral bonus applied: ${formData.referral_code} -> +5 credits to referrer, +2 to new user`);
-        } else {
-          console.log(`Referral code ${formData.referral_code} not found`);
         }
       }
       
@@ -491,7 +392,7 @@ export default function Onboarding() {
                     key={type.id}
                     className={`cursor-pointer transition-all duration-200 transform hover:-translate-y-1 ${
                       formData.user_type === type.id
-                        ? `ring-2 ${getRingColor(type.color)} shadow-lg`
+                        ? `ring-2 ring-${type.color}-500 shadow-lg`
                         : 'hover:shadow-lg'
                     }`}
                     onClick={() => handleUserTypeSelect(type.id)}
@@ -499,7 +400,7 @@ export default function Onboarding() {
                     <CardHeader className="text-center p-6">
                       <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
                         formData.user_type === type.id
-                          ? getSelectedIconStyles(type.color)
+                          ? `bg-${type.color}-500 text-white`
                           : 'bg-gray-100 text-gray-600'
                       }`}>
                         <type.icon className="w-8 h-8" />
@@ -676,12 +577,9 @@ export default function Onboarding() {
                       id="linkedin_url"
                       value={formData.linkedin_url}
                       onChange={(e) => handleInputChange('linkedin_url', e.target.value)}
-                      className={`rounded-xl border-gray-200 ${validationErrors.linkedin_url ? 'border-red-500 focus:ring-red-500' : ''}`}
+                      className="rounded-xl border-gray-200"
                       placeholder="https://linkedin.com/in/yourprofile"
                     />
-                    {validationErrors.linkedin_url && (
-                      <p className="text-red-500 text-sm">{validationErrors.linkedin_url}</p>
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -690,12 +588,9 @@ export default function Onboarding() {
                       id="portfolio_url"
                       value={formData.portfolio_url}
                       onChange={(e) => handleInputChange('portfolio_url', e.target.value)}
-                      className={`rounded-xl border-gray-200 ${validationErrors.portfolio_url ? 'border-red-500 focus:ring-red-500' : ''}`}
+                      className="rounded-xl border-gray-200"
                       placeholder="https://yourportfolio.com"
                     />
-                    {validationErrors.portfolio_url && (
-                      <p className="text-red-500 text-sm">{validationErrors.portfolio_url}</p>
-                    )}
                     <p className="text-sm text-gray-500">
                       Examples: GitHub, Dribbble, Behance, Upwork, Fiverr, personal website, etc.
                     </p>
@@ -706,14 +601,10 @@ export default function Onboarding() {
                     <Input
                       id="referral_code"
                       value={formData.referral_code}
-                      onChange={(e) => handleInputChange('referral_code', e.target.value.toUpperCase())}
-                      className={`rounded-xl border-gray-200 ${validationErrors.referral_code ? 'border-red-500 focus:ring-red-500' : ''}`}
+                      onChange={(e) => handleInputChange('referral_code', e.target.value)}
+                      className="rounded-xl border-gray-200"
                       placeholder="Enter code if you have one"
-                      maxLength={10}
                     />
-                    {validationErrors.referral_code && (
-                      <p className="text-red-500 text-sm">{validationErrors.referral_code}</p>
-                    )}
                   </div>
 
                   {selectedUserType && (
@@ -750,8 +641,8 @@ export default function Onboarding() {
                     </Button>
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting || Object.keys(validationErrors).length > 0}
-                      className="bg-black hover:bg-gray-900 text-white px-8 py-3 rounded-xl disabled:opacity-50"
+                      disabled={isSubmitting}
+                      className="bg-black hover:bg-gray-900 text-white px-8 py-3 rounded-xl"
                     >
                       {isSubmitting ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />

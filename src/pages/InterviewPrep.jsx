@@ -1,487 +1,227 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../components/AuthContext';
+import React, { useState, useEffect } from "react";
+import { UserProfile } from "@/api/entities";
+import { Analysis } from "@/api/entities";
+import { processAnalysis } from "@/api/functions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  MessageSquare, 
+  Sparkles, 
+  Send, 
+  Briefcase,
+  Users,
+  Target
+} from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import EmailService from "@/components/email/EmailService";
+import { useAuth } from "@/components/AuthContext";
 
-const InterviewPrep = () => {
-  const { user } = useAuth();
+const interviewTypes = [
+  { value: "behavioral", label: "Behavioral Interview", icon: Users },
+  { value: "technical", label: "Technical Interview", icon: Target },
+  { value: "case_study", label: "Case Study", icon: Briefcase },
+  { value: "panel", label: "Panel Interview", icon: Users }
+];
+
+export default function InterviewPrep() {
+  const { user, userProfile } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    interview_type: "",
+    job_title: "",
+    company_name: "",
+    job_description: "",
+    questions: ""
+  });
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState('software-engineer');
-  const [difficulty, setDifficulty] = useState('medium');
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simulation, setSimulation] = useState(null);
 
-  const demoUser = {
-    name: 'Demo User',
-    email: 'demo@profilespike.com',
-    credits: 3
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const roleQuestions = {
-    'software-engineer': [
-      'Tell me about a challenging technical problem you solved.',
-      'How do you approach debugging a complex issue?',
-      'Describe your experience with agile development.',
-      'How do you stay updated with new technologies?',
-      'Walk me through your system design approach.'
-    ],
-    'product-manager': [
-      'How do you prioritize features in a product roadmap?',
-      'Describe a time when you had to make a difficult product decision.',
-      'How do you gather and analyze customer feedback?',
-      'Tell me about a product launch you managed.',
-      'How do you work with engineering and design teams?'
-    ],
-    'data-scientist': [
-      'Explain a machine learning project you worked on.',
-      'How do you handle missing data in your analysis?',
-      'Describe your approach to feature selection.',
-      'How do you validate your model results?',
-      'Tell me about a time when your analysis led to business impact.'
-    ]
-  };
-
-  const handleStartSimulation = async () => {
-    setIsSimulating(true);
-    
-    try {
-      const response = await fetch('http://localhost:3002/api/interview-prep', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          role: selectedRole,
-          difficulty: difficulty,
-          company: ''
-        })
+  const handleSubmit = async () => {
+    if (!userProfile || !formData.interview_type || !formData.job_title) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in the interview type and job title.",
+        variant: "destructive"
       });
+      return;
+    }
 
-      if (!response.ok) {
-        throw new Error('Failed to generate interview prep');
+    if (user.role !== 'admin' && userProfile.subscription_status !== 'premium' && userProfile.credits_remaining <= 0) {
+      toast({
+        title: "Out of Credits",
+        description: "You've used all your free credits. Upgrade to premium for unlimited analyses.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const analysisRecord = await Analysis.create({
+        analysis_type: 'interview',
+        content_text: JSON.stringify(formData),
+        status: 'processing'
+      });
+      
+      if (user.role !== 'admin' && userProfile.subscription_status !== 'premium') {
+        const newCreditsRemaining = Math.max(0, userProfile.credits_remaining - 1);
+        await UserProfile.update(userProfile.id, { credits_remaining: newCreditsRemaining });
+
+        if (newCreditsRemaining === 1) {
+          EmailService.sendLowCreditsEmail({ ...userProfile, credits_remaining: newCreditsRemaining });
+        }
       }
 
-      const prepData = await response.json();
-      
-      setSimulation({
-        role: selectedRole,
-        questions: prepData.questions || roleQuestions[selectedRole]?.slice(0, 3) || [
-          'Tell me about yourself and your experience.',
-          'Why are you interested in this role?',
-          'What are your greatest strengths?'
-        ],
-        tips: prepData.tips || [
-          'Use the STAR method (Situation, Task, Action, Result)',
-          'Be specific with examples and metrics',
-          'Ask clarifying questions when needed',
-          'Show enthusiasm and cultural fit'
-        ],
-        score: prepData.score || 85
+      processAnalysis({ analysisId: analysisRecord.id }).catch(err => {
+        console.error("Interview analysis processing error:", err);
       });
+
+      toast({
+        title: "Analysis Submitted! 🚀",
+        description: "Redirecting you to view the progress...",
+      });
+      
+      navigate(createPageUrl('SavedInsights'));
+
     } catch (error) {
-      console.error('Interview prep failed:', error);
-      // Fallback to existing questions
-      const questions = roleQuestions[selectedRole] || [
-        'Tell me about yourself and your experience.',
-        'Why are you interested in this role?',
-        'What are your greatest strengths?'
-      ];
-      
-      setSimulation({
-        role: selectedRole,
-        questions: questions.slice(0, 3),
-        tips: [
-          'Use the STAR method (Situation, Task, Action, Result)',
-          'Be specific with examples and metrics',
-          'Ask clarifying questions when needed',
-          'Show enthusiasm and cultural fit'
-        ],
-        score: 85
+      console.error("Error submitting interview prep:", error);
+      toast({
+        title: "Submission Failed",
+        description: "Failed to submit analysis. Please try again.",
+        variant: "destructive"
       });
-    } finally {
-      setIsSimulating(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom right, #f8fafc, #f1f5f9)',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif'
-    }}>
-      {/* Premium Header */}
-      <div style={{
-        backgroundColor: 'rgba(255,255,255,0.8)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        borderBottom: '1px solid rgba(0,0,0,0.08)',
-        padding: '24px 0'
-      }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center">
+              <MessageSquare className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 style={{
-                fontSize: '32px',
-                fontWeight: '700',
-                color: '#1a1a1a',
-                margin: 0,
-                letterSpacing: '-0.5px'
-              }}>
-                🎯 Interview Preparation
-              </h1>
-              <p style={{
-                fontSize: '16px',
-                color: '#6b7280',
-                margin: '4px 0 0 0',
-                fontWeight: '400'
-              }}>
-                Practice with AI-powered mock interviews and get real-time feedback
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  background: 'rgba(0,0,0,0.04)',
-                  border: 'none',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}
-              >
-                ← Dashboard
-              </button>
-              <div style={{
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}>
-                {demoUser.credits} Credits Remaining
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px 40px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px' }}>
-          
-          {/* Setup Section */}
-          <div>
-            <div style={{
-              background: 'rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '48px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.06)'
-            }}>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '700',
-                color: '#1a1a1a',
-                marginBottom: '24px',
-                letterSpacing: '-0.3px'
-              }}>
-                🎪 Setup Your Interview
-              </h2>
-              
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#1a1a1a',
-                  marginBottom: '12px'
-                }}>
-                  Target Role
-                </h3>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid rgba(0,0,0,0.1)',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    background: 'rgba(255,255,255,0.8)'
-                  }}
-                >
-                  <option value="software-engineer">Software Engineer</option>
-                  <option value="product-manager">Product Manager</option>
-                  <option value="data-scientist">Data Scientist</option>
-                  <option value="marketing-manager">Marketing Manager</option>
-                  <option value="sales-executive">Sales Executive</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '32px' }}>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: '#1a1a1a',
-                  marginBottom: '12px'
-                }}>
-                  Difficulty Level
-                </h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {['easy', 'medium', 'hard'].map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setDifficulty(level)}
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        border: 'none',
-                        borderRadius: '12px',
-                        background: difficulty === level 
-                          ? 'linear-gradient(135deg, #10b981, #059669)' 
-                          : 'rgba(255,255,255,0.6)',
-                        color: difficulty === level ? 'white' : '#374151',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        textTransform: 'capitalize'
-                      }}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                onClick={handleStartSimulation}
-                disabled={isSimulating}
-                style={{
-                  width: '100%',
-                  background: isSimulating ? '#ccc' : 'linear-gradient(135deg, #10b981, #059669)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                  cursor: isSimulating ? 'not-allowed' : 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  boxShadow: isSimulating ? 'none' : '0 4px 15px rgba(16,185,129,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                {isSimulating ? (
-                  <>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderRadius: '50%',
-                      borderTopColor: 'white',
-                      animation: 'spin 1s ease-in-out infinite'
-                    }} />
-                    Preparing Interview...
-                  </>
-                ) : (
-                  '🚀 Start Mock Interview'
-                )}
-              </button>
-
-              <div style={{
-                marginTop: '24px',
-                padding: '20px',
-                background: 'rgba(16,185,129,0.1)',
-                borderRadius: '12px'
-              }}>
-                <h4 style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#10b981',
-                  marginBottom: '8px'
-                }}>
-                  ✨ What You'll Get:
-                </h4>
-                <ul style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: 0,
-                  fontSize: '13px',
-                  color: '#374151'
-                }}>
-                  <li style={{ marginBottom: '4px' }}>• Role-specific questions</li>
-                  <li style={{ marginBottom: '4px' }}>• Real-time feedback</li>
-                  <li style={{ marginBottom: '4px' }}>• STAR method coaching</li>
-                  <li>• Performance scoring</li>
-                </ul>
-              </div>
+              <h1 className="text-3xl font-bold text-black tracking-tight">Interview Prep</h1>
+              <p className="text-gray-600">Get AI-powered interview coaching and practice</p>
             </div>
           </div>
 
-          {/* Results Section */}
-          <div>
-            {!simulation ? (
-              <div style={{
-                background: 'rgba(255,255,255,0.8)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: '24px',
-                padding: '48px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
-                textAlign: 'center',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <div style={{ fontSize: '64px', marginBottom: '24px' }}>💼</div>
-                <h3 style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: '#1a1a1a',
-                  marginBottom: '16px'
-                }}>
-                  Ready for Your Interview?
-                </h3>
-                <p style={{
-                  fontSize: '16px',
-                  color: '#6b7280',
-                  lineHeight: '1.6',
-                  maxWidth: '300px',
-                  margin: '0 auto'
-                }}>
-                  Select your target role and difficulty level to start practicing with AI-powered mock interviews.
-                </p>
-              </div>
+          <div className="flex items-center gap-4">
+            {(user?.role === 'admin' || userProfile?.subscription_status === 'premium') ? (
+              <Badge className="bg-yellow-500 text-white px-3 py-1">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {user?.role === 'admin' ? 'Admin Access' : 'Premium'}
+              </Badge>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                style={{
-                  background: 'rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(20px)',
-                  borderRadius: '24px',
-                  padding: '32px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.06)'
-                }}
-              >
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                  <div style={{
-                    fontSize: '48px',
-                    fontWeight: '700',
-                    color: simulation.score >= 90 ? '#10b981' : simulation.score >= 80 ? '#f59e0b' : '#ef4444',
-                    marginBottom: '8px'
-                  }}>
-                    {simulation.score}/100
-                  </div>
-                  <h3 style={{
-                    fontSize: '20px',
-                    fontWeight: '600',
-                    color: '#1a1a1a',
-                    marginBottom: '4px'
-                  }}>
-                    Interview Performance
-                  </h3>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>
-                    {simulation.score >= 90 ? 'Excellent performance!' : 
-                     simulation.score >= 80 ? 'Good performance with room for improvement' : 
-                     'Needs more practice'}
-                  </p>
-                </div>
-
-                <div style={{
-                  background: 'rgba(16,185,129,0.1)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  marginBottom: '24px'
-                }}>
-                  <h4 style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#10b981',
-                    marginBottom: '12px'
-                  }}>
-                    🎯 Sample Questions
-                  </h4>
-                  <ul style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0
-                  }}>
-                    {simulation.questions.map((question, index) => (
-                      <li key={index} style={{
-                        fontSize: '14px',
-                        color: '#374151',
-                        marginBottom: '8px',
-                        paddingLeft: '16px',
-                        position: 'relative'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          left: 0,
-                          color: '#10b981',
-                          fontWeight: 'bold'
-                        }}>{index + 1}.</span>
-                        {question}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div style={{
-                  background: 'rgba(59,130,246,0.1)',
-                  borderRadius: '12px',
-                  padding: '20px'
-                }}>
-                  <h4 style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: '#3b82f6',
-                    marginBottom: '12px'
-                  }}>
-                    💡 Interview Tips
-                  </h4>
-                  <ul style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0
-                  }}>
-                    {simulation.tips.map((tip, index) => (
-                      <li key={index} style={{
-                        fontSize: '14px',
-                        color: '#374151',
-                        marginBottom: '8px',
-                        paddingLeft: '16px',
-                        position: 'relative'
-                      }}>
-                        <span style={{
-                          position: 'absolute',
-                          left: 0,
-                          color: '#3b82f6'
-                        }}>•</span>
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </motion.div>
+              <Badge className="bg-black text-white px-3 py-1">
+                {userProfile?.credits_remaining} credits remaining
+              </Badge>
             )}
           </div>
         </div>
+
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Interview Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">Interview Type *</label>
+                <Select value={formData.interview_type} onValueChange={(value) => handleInputChange('interview_type', value)}>
+                  <SelectTrigger className="rounded-xl border-gray-200">
+                    <SelectValue placeholder="Select interview type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {interviewTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div className="flex items-center gap-2">
+                          <type.icon className="w-4 h-4" />
+                          {type.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">Job Title *</label>
+                <Input
+                  value={formData.job_title}
+                  onChange={(e) => handleInputChange('job_title', e.target.value)}
+                  placeholder="e.g. Senior Marketing Manager"
+                  className="rounded-xl border-gray-200"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Company Name</label>
+              <Input
+                value={formData.company_name}
+                onChange={(e) => handleInputChange('company_name', e.target.value)}
+                placeholder="e.g. Google, Microsoft, etc."
+                className="rounded-xl border-gray-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Job Description (Optional)</label>
+              <Textarea
+                value={formData.job_description}
+                onChange={(e) => handleInputChange('job_description', e.target.value)}
+                placeholder="Paste the job description here to get more targeted practice questions..."
+                rows={4}
+                className="rounded-xl border-gray-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Specific Questions (Optional)</label>
+              <Textarea
+                value={formData.questions}
+                onChange={(e) => handleInputChange('questions', e.target.value)}
+                placeholder="Add specific questions you want to practice, one per line..."
+                rows={3}
+                className="rounded-xl border-gray-200"
+              />
+            </div>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={!formData.interview_type || !formData.job_title || isSubmitting || (user?.role !== 'admin' && userProfile?.subscription_status !== 'premium' && userProfile?.credits_remaining <= 0)}
+              className="w-full bg-black hover:bg-gray-900 text-white py-3 rounded-xl"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Start Interview Prep
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-      
-      <style jsx>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
-};
-
-export default InterviewPrep;
+}
